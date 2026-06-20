@@ -15,9 +15,16 @@ pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
         &[&open_item, &ocr_item, &settings_item, &exit_item],
     )?;
 
-    // 3. Build and launch tray icon
+    // 3. Build and launch tray icon using embedded bytes to ensure it never fails
+    let icon_bytes = include_bytes!("../icons/32x32.png");
+    let decoded = image::load_from_memory(icon_bytes)?;
+    let rgba = decoded.to_rgba8();
+    let width = decoded.width();
+    let height = decoded.height();
+    let icon = tauri::image::Image::new_owned(rgba.into_raw(), width, height);
+
     let _tray = TrayIconBuilder::new()
-        .icon(app.default_window_icon().cloned().ok_or("No default window icon found")?)
+        .icon(icon)
         .menu(&menu)
         .on_menu_event(|app_handle, event| {
             match event.id.as_ref() {

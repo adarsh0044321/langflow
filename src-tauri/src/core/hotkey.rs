@@ -17,6 +17,16 @@ const HOTKEY_TYPING_ID: i32 = 1003;
 pub fn start_hotkey_listener(app_handle: AppHandle) {
     thread::spawn(move || {
         unsafe {
+            // Force creation of the thread's message queue so hotkeys register correctly
+            let mut init_msg = MSG::default();
+            let _ = windows::Win32::UI::WindowsAndMessaging::PeekMessageW(
+                &mut init_msg,
+                HWND(0),
+                0,
+                0,
+                windows::Win32::UI::WindowsAndMessaging::PM_NOREMOVE,
+            );
+
             // Register hotkeys globally:
             // Ctrl + Shift + T (Translate Highlight)
             let _ = RegisterHotKey(

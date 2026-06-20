@@ -41,8 +41,10 @@ impl Database {
     fn connect(&self) -> Result<Connection> {
         let conn = Connection::open(&self.db_path)?;
         // Enable WAL mode for high performance and concurrency
-        conn.execute("PRAGMA journal_mode=WAL;", [])?;
-        conn.execute("PRAGMA synchronous=NORMAL;", [])?;
+        conn.execute_batch(
+            "PRAGMA journal_mode=WAL;
+             PRAGMA synchronous=NORMAL;"
+        )?;
         Ok(conn)
     }
 
