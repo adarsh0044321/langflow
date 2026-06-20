@@ -1,0 +1,76 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "LangFlow",
+  "version": "0.1.0",
+  "identifier": "com.langflow.app",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "LangFlow",
+        "width": 800,
+        "height": 450,
+        "resizable": true,
+        "decorations": false,
+        "visible": false
+      },
+      {
+        "label": "screenshot_overlay",
+        "title": "LangFlow Screenshot",
+        "width": 800,
+        "height": 600,
+        "decorations": false,
+        "transparent": true,
+        "visible": false,
+        "alwaysOnTop": true,
+        "maximized": true,
+        "resizable": false
+      },
+      {
+        "label": "floating_popup",
+        "title": "LangFlow Translation",
+        "width": 400,
+        "height": 220,
+        "decorations": false,
+        "transparent": true,
+        "visible": false,
+        "alwaysOnTop": true,
+        "resizable": false
+      },
+      {
+        "label": "settings",
+        "title": "LangFlow - Settings & Language Manager",
+        "width": 750,
+        "height": 600,
+        "resizable": true,
+        "decorations": true,
+        "visible": false
+      }
+    ],
+    "trayIcon": {
+      "iconPath": "icons/128x128.png",
+      "iconAsTemplate": false,
+      "menuOnLeftClick": false
+    },
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
+}
