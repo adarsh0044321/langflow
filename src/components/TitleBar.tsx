@@ -1,5 +1,6 @@
 import React from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { invoke } from '@tauri-apps/api/core';
 
 interface TitleBarProps {
   title: string;
@@ -17,8 +18,8 @@ export const TitleBar: React.FC<TitleBarProps> = ({ title, showMinimize = true }
 
   const handleClose = async () => {
     try {
-      // For utility application, close request hides the window rather than destroying it
-      await getCurrentWindow().hide();
+      const label = getCurrentWindow().label;
+      await invoke('hide_window', { label });
     } catch (e) {
       console.error(e);
     }

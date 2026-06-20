@@ -151,12 +151,7 @@ export const MainWindow: React.FC = () => {
   const handleOpenSettings = async () => {
     try {
       await invoke('request_memory_trim'); // Reclaim memory before opening another window
-      const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow');
-      const settingsWin = await WebviewWindow.getByLabel('settings');
-      if (settingsWin) {
-        await settingsWin.show();
-        await settingsWin.setFocus();
-      }
+      await invoke('show_window', { label: 'settings' });
     } catch (e) {
       console.error(e);
     }

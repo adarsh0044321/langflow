@@ -53,7 +53,7 @@ pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
             }
         })
         .on_tray_icon_event(|tray, event| {
-            if let TrayIconEvent::Click { button: tauri::tray::MouseButton::Left, .. } = event {
+            if let TrayIconEvent::DoubleClick { button: tauri::tray::MouseButton::Left, .. } = event {
                 let app_handle = tray.app_handle();
                 if let Some(w) = app_handle.get_webview_window("main") {
                     let _ = w.show();

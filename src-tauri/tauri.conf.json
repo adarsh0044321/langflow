@@ -56,7 +56,7 @@
     "trayIcon": {
       "iconPath": "icons/128x128.png",
       "iconAsTemplate": false,
-      "menuOnLeftClick": false
+      "menuOnLeftClick": true
     },
     "security": {
       "csp": null

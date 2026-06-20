@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { PhysicalPosition } from '@tauri-apps/api/dpi';
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { emit } from '@tauri-apps/api/event';
 
 
 export const ScreenshotOverlay: React.FC = () => {
@@ -29,7 +29,7 @@ export const ScreenshotOverlay: React.FC = () => {
     const handleKeyDown = async (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setIsDrawing(false);
-        await getCurrentWindow().hide();
+        await invoke('hide_window', { label: 'screenshot_overlay' });
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -90,7 +90,7 @@ export const ScreenshotOverlay: React.FC = () => {
     const h = Math.abs(startPos.y - e.clientY);
 
     // Hide overlay window immediately to avoid flashing
-    await getCurrentWindow().hide();
+    await invoke('hide_window', { label: 'screenshot_overlay' });
 
     if (w < 10 || h < 10) {
       // Too small selection, cancel
@@ -118,32 +118,25 @@ export const ScreenshotOverlay: React.FC = () => {
 
       const data = JSON.parse(ocrResultJson);
 
-      // Show result in floating popup window
-      const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow');
-      const popup = await WebviewWindow.getByLabel('floating_popup');
-      if (popup) {
-        // Move popup close to selection area
-        await popup.setPosition(new PhysicalPosition(physicalX, physicalY + physicalH + 10));
-        await popup.show();
-        await popup.setFocus();
-        await popup.emit('display-ocr-result', {
-          original: data.original,
-          translated: data.translated,
-        });
-      }
+      // Show result in floating popup window via backend command
+      await invoke('position_and_show_popup', { x: physicalX, y: physicalY + physicalH + 10 });
+      
+      // Emit event globally
+      await emit('display-ocr-result', {
+        original: data.original,
+        translated: data.translated,
+      });
     } catch (err) {
       console.error('OCR translation failed:', err);
       // Show error in popup
-      const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow');
-      const popup = await WebviewWindow.getByLabel('floating_popup');
-      if (popup) {
-        await popup.show();
-        await popup.setFocus();
-        await popup.emit('display-ocr-result', {
-          original: '[OCR Error]',
-          translated: `Failed to translate screenshot: ${err}`,
-        });
-      }
+      const physicalX = Math.round(x * scaleFactor);
+      const physicalY = Math.round(y * scaleFactor);
+      const physicalH = Math.round(h * scaleFactor);
+      await invoke('position_and_show_popup', { x: physicalX, y: physicalY + physicalH + 10 });
+      await emit('display-ocr-result', {
+        original: '[OCR Error]',
+        translated: `Failed to translate screenshot: ${err}`,
+      });
     }
   };
 

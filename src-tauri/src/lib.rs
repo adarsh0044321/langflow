@@ -136,6 +136,33 @@ fn request_memory_trim() -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+fn show_window(app: AppHandle, label: String) -> Result<(), String> {
+    if let Some(w) = app.get_webview_window(&label) {
+        w.show().map_err(|e| e.to_string())?;
+        w.set_focus().map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn hide_window(app: AppHandle, label: String) -> Result<(), String> {
+    if let Some(w) = app.get_webview_window(&label) {
+        w.hide().map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn position_and_show_popup(app: AppHandle, x: i32, y: i32) -> Result<(), String> {
+    if let Some(w) = app.get_webview_window("floating_popup") {
+        let _ = w.set_position(tauri::PhysicalPosition::new(x, y));
+        let _ = w.show();
+        let _ = w.set_focus();
+    }
+    Ok(())
+}
+
 // --- Main Library Entrance ---
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -190,7 +217,10 @@ pub fn run() {
             uninstall_pack,
             ocr_translate,
             inject_typed_translation,
-            request_memory_trim
+            request_memory_trim,
+            show_window,
+            hide_window,
+            position_and_show_popup
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

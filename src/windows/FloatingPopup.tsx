@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { getCurrentWindow } from '@tauri-apps/api/window';
 import { TitleBar } from '../components/TitleBar';
 
 export const FloatingPopup: React.FC = () => {
@@ -51,7 +50,7 @@ export const FloatingPopup: React.FC = () => {
   useEffect(() => {
     const handleBlur = async () => {
       try {
-        await getCurrentWindow().hide();
+        await invoke('hide_window', { label: 'floating_popup' });
       } catch (e) {
         console.error(e);
       }
@@ -65,7 +64,7 @@ export const FloatingPopup: React.FC = () => {
     if (!translated) return;
     try {
       await navigator.clipboard.writeText(translated);
-      await getCurrentWindow().hide(); // Dismiss popup on copy
+      await invoke('hide_window', { label: 'floating_popup' }); // Dismiss popup on copy
     } catch (e) {
       console.error(e);
     }

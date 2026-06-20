@@ -76,8 +76,11 @@ pub fn start_hotkey_listener(app_handle: AppHandle) {
                             });
                         }
                         HOTKEY_TYPING_ID => {
-                            // Toggle Inline Typing Assistant
-                            let _ = app_handle.emit("toggle-typing-mode", ());
+                            // Run inline typing replacement translation
+                            let handle = app_handle.clone();
+                            tokio::spawn(async move {
+                                let _ = process_inline_typing_translation(handle).await;
+                            });
                         }
                         _ => {}
                     }
@@ -129,6 +132,64 @@ async fn process_highlight_translation(app: AppHandle) -> Result<(), Box<dyn std
     Ok(())
 }
 
+async fn process_inline_typing_translation(app: AppHandle) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    // 1. Read original clipboard text so we don't destroy user's copy-paste buffer
+    let original_clipboard_text = {
+        let mut cb = Clipboard::new()?;
+        cb.get_text().ok()
+    };
+
+    // 2. Synthesize Shift + Home key press to highlight the typed text
+    unsafe {
+        simulate_select_line_keys();
+    }
+    tokio::time::sleep(Duration::from_millis(50)).await;
+
+    // 3. Synthesize Ctrl+C key presses to copy the highlighted text
+    unsafe {
+        simulate_copy_keys();
+    }
+    tokio::time::sleep(Duration::from_millis(150)).await;
+
+    // 4. Read highlighted text from clipboard
+    let selected_text = {
+        let mut cb = Clipboard::new()?;
+        match cb.get_text() {
+            Ok(text) if !text.trim().is_empty() => text,
+            _ => return Ok(()), // Nothing selected/copied
+        }
+    };
+
+    // 5. Restore user's original clipboard
+    if let Some(orig) = original_clipboard_text {
+        let mut cb = Clipboard::new()?;
+        let _ = cb.set_text(orig);
+    }
+
+    // 6. Retrieve translation config and DB state
+    let config = crate::core::config::load_config();
+    let db = app.state::<Arc<crate::core::database::Database>>();
+
+    // 7. Perform translation
+    let translated = crate::translation::perform_translation(
+        db.inner().clone(),
+        &selected_text,
+        &config.source_lang,
+        &config.target_lang,
+    ).await?;
+
+    // 8. Synthesize Backspace to delete the highlighted original text
+    unsafe {
+        simulate_backspace_key();
+    }
+    tokio::time::sleep(Duration::from_millis(50)).await;
+
+    // 9. Type the translated text back character by character
+    crate::core::inline_type::inject_text_as_keystrokes(&translated);
+
+    Ok(())
+}
+
 unsafe fn simulate_copy_keys() {
     let mut inputs = [INPUT::default(); 4];
 
@@ -166,6 +227,78 @@ unsafe fn simulate_copy_keys() {
     inputs[3].r#type = windows::Win32::UI::Input::KeyboardAndMouse::INPUT_TYPE(1);
     inputs[3].Anonymous.ki = KEYBDINPUT {
         wVk: VIRTUAL_KEY(0x11),
+        wScan: 0,
+        dwFlags: KEYEVENTF_KEYUP,
+        time: 0,
+        dwExtraInfo: 0,
+    };
+
+    SendInput(&inputs, mem::size_of::<INPUT>() as i32);
+}
+
+unsafe fn simulate_select_line_keys() {
+    let mut inputs = [INPUT::default(); 4];
+
+    // Press Shift
+    inputs[0].r#type = windows::Win32::UI::Input::KeyboardAndMouse::INPUT_TYPE(1); // INPUT_KEYBOARD
+    inputs[0].Anonymous.ki = KEYBDINPUT {
+        wVk: VIRTUAL_KEY(0x10), // VK_SHIFT
+        wScan: 0,
+        dwFlags: windows::Win32::UI::Input::KeyboardAndMouse::KEYBD_EVENT_FLAGS(0),
+        time: 0,
+        dwExtraInfo: 0,
+    };
+
+    // Press Home
+    inputs[1].r#type = windows::Win32::UI::Input::KeyboardAndMouse::INPUT_TYPE(1);
+    inputs[1].Anonymous.ki = KEYBDINPUT {
+        wVk: VIRTUAL_KEY(0x24), // VK_HOME
+        wScan: 0,
+        dwFlags: windows::Win32::UI::Input::KeyboardAndMouse::KEYBD_EVENT_FLAGS(0),
+        time: 0,
+        dwExtraInfo: 0,
+    };
+
+    // Release Home
+    inputs[2].r#type = windows::Win32::UI::Input::KeyboardAndMouse::INPUT_TYPE(1);
+    inputs[2].Anonymous.ki = KEYBDINPUT {
+        wVk: VIRTUAL_KEY(0x24),
+        wScan: 0,
+        dwFlags: KEYEVENTF_KEYUP,
+        time: 0,
+        dwExtraInfo: 0,
+    };
+
+    // Release Shift
+    inputs[3].r#type = windows::Win32::UI::Input::KeyboardAndMouse::INPUT_TYPE(1);
+    inputs[3].Anonymous.ki = KEYBDINPUT {
+        wVk: VIRTUAL_KEY(0x10),
+        wScan: 0,
+        dwFlags: KEYEVENTF_KEYUP,
+        time: 0,
+        dwExtraInfo: 0,
+    };
+
+    SendInput(&inputs, mem::size_of::<INPUT>() as i32);
+}
+
+unsafe fn simulate_backspace_key() {
+    let mut inputs = [INPUT::default(); 2];
+
+    // Press Backspace
+    inputs[0].r#type = windows::Win32::UI::Input::KeyboardAndMouse::INPUT_TYPE(1); // INPUT_KEYBOARD
+    inputs[0].Anonymous.ki = KEYBDINPUT {
+        wVk: VIRTUAL_KEY(0x08), // VK_BACK
+        wScan: 0,
+        dwFlags: windows::Win32::UI::Input::KeyboardAndMouse::KEYBD_EVENT_FLAGS(0),
+        time: 0,
+        dwExtraInfo: 0,
+    };
+
+    // Release Backspace
+    inputs[1].r#type = windows::Win32::UI::Input::KeyboardAndMouse::INPUT_TYPE(1);
+    inputs[1].Anonymous.ki = KEYBDINPUT {
+        wVk: VIRTUAL_KEY(0x08),
         wScan: 0,
         dwFlags: KEYEVENTF_KEYUP,
         time: 0,
