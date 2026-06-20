@@ -9,7 +9,7 @@ mod tray;
 
 use std::sync::Arc;
 use std::time::Duration;
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, Manager, State, Emitter};
 
 use crate::core::config::{load_config, save_config, AppConfig};
 use crate::core::database::{Database, HistoryEntry, LanguagePackInfo};
@@ -163,6 +163,16 @@ fn position_and_show_popup(app: AppHandle, x: i32, y: i32) -> Result<(), String>
     Ok(())
 }
 
+#[tauri::command]
+fn toggle_ime_mode(app: AppHandle) -> Result<bool, String> {
+    let mut config = crate::core::config::load_config();
+    config.inline_typing_enabled = !config.inline_typing_enabled;
+    crate::core::config::save_config(&config);
+    crate::core::ime::set_ime_enabled(config.inline_typing_enabled);
+    let _ = app.emit("ime-status-changed", config.inline_typing_enabled);
+    Ok(config.inline_typing_enabled)
+}
+
 // --- Main Library Entrance ---
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -178,6 +188,9 @@ pub fn run() {
 
             // 2. Start global keyboard listener
             start_hotkey_listener(app.handle().clone());
+
+            // 3. Start real-time IME hook
+            core::ime::init_ime_hook(app.handle().clone());
 
             // 3. Start memory optimization loop
             std::thread::spawn(move || {
@@ -220,7 +233,8 @@ pub fn run() {
             request_memory_trim,
             show_window,
             hide_window,
-            position_and_show_popup
+            position_and_show_popup,
+            toggle_ime_mode
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

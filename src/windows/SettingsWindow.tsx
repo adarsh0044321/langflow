@@ -42,11 +42,7 @@ export const SettingsWindow: React.FC = () => {
   const [packs, setPacks] = useState<LanguagePackInfo[]>([]);
   const [downloadingStatus, setDownloadingStatus] = useState<Record<string, number>>({});
   
-  // Typing Assistant State
-  const [typingInput, setTypingInput] = useState('');
-  const [typingTargetLang, setTypingTargetLang] = useState('ja');
-  const [typingTranslated, setTypingTranslated] = useState('');
-  const [typingLoading, setTypingLoading] = useState(false);
+
 
   // 1. Load config and language packs
   const loadData = async () => {
@@ -80,8 +76,15 @@ export const SettingsWindow: React.FC = () => {
       }
     );
 
+    // 3. Listen to global IME status updates
+    const unlistenIme = listen<boolean>('ime-status-changed', (event) => {
+      const activeState = event.payload;
+      setConfig((prev) => prev ? { ...prev, inline_typing_enabled: activeState } : null);
+    });
+
     return () => {
       unlistenProgress.then((f) => f());
+      unlistenIme.then((f) => f());
     };
   }, []);
 
@@ -120,38 +123,18 @@ export const SettingsWindow: React.FC = () => {
     }
   };
 
-  // --- Inline Typing Assistant Handler ---
-  const handleTypingTranslate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!typingInput.trim()) return;
-
-    setTypingLoading(true);
+  const handleToggleIme = async () => {
     try {
-      // Perform normal translation
-      const result: string = await invoke('translate', {
-        text: typingInput,
-        source: 'Auto',
-        target: typingTargetLang,
-      });
-      setTypingTranslated(result);
-
-      // Inject the translation as keystrokes to the previous active window!
-      // (This will wait 1.5 seconds so user can click focus back into their target window)
-      setTimeout(async () => {
-        try {
-          await invoke('inject_typed_translation', { text: result });
-        } catch (err) {
-          console.error(err);
-        }
-      }, 1500);
-
-    } catch (err) {
-      console.error(err);
-      setTypingTranslated(`Error: ${err}`);
-    } finally {
-      setTypingLoading(false);
+      const activeState: boolean = await invoke('toggle_ime_mode');
+      if (config) {
+        setConfig({ ...config, inline_typing_enabled: activeState });
+      }
+    } catch (e) {
+      console.error(e);
     }
   };
+
+
 
   if (!config) {
     return <div style={{ color: 'var(--text-muted)', display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center' }}>Loading Settings...</div>;
@@ -394,64 +377,106 @@ export const SettingsWindow: React.FC = () => {
 
           {/* Typing Assistant Tab */}
           {activeTab === 'typing' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <h3 style={{ margin: '0 0 4px 0', fontFamily: 'var(--font-display)', fontWeight: 600 }}>Inline Typing Assistant</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <h3 style={{ margin: '0 0 4px 0', fontFamily: 'var(--font-display)', fontWeight: 600 }}>Real-Time Typing Translation (IME Mode)</h3>
               <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0 }}>
-                Type in your native language below, specify the target language, and hit Inject.
-                LangFlow will translate the text and use native Win32 keyboard events to type it character-by-character into whatever text input you focus within 1.5 seconds!
+                Like Google Input Tools, this mode lets you type in your native language directly inside any game, chat box, or app, and automatically translates it on-the-fly.
               </p>
 
-              <form onSubmit={handleTypingTranslate} style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '12px' }}>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Target Language:</span>
-                  <select value={typingTargetLang} onChange={(e) => setTypingTargetLang(e.target.value)}>
-                    <option value="ja">Japanese</option>
-                    <option value="zh">Chinese</option>
-                    <option value="ko">Korean</option>
-                    <option value="es">Spanish</option>
-                    <option value="de">German</option>
-                  </select>
-                </div>
-
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <input
-                    type="text"
-                    placeholder="Type text in your language (e.g. Hello, how are you?)..."
-                    value={typingInput}
-                    onChange={(e) => setTypingInput(e.target.value)}
-                    style={{
-                      flex: 1,
-                      background: 'var(--bg-tertiary)',
-                      border: '1px solid var(--border-color)',
-                      borderRadius: '4px',
-                      padding: '8px 10px',
-                      color: 'var(--text-primary)',
-                      outline: 'none',
-                      fontSize: '13px'
-                    }}
-                  />
-                  <button type="submit" className="btn-primary" disabled={typingLoading || !typingInput}>
-                    {typingLoading ? 'Translating...' : 'Translate & Inject'}
-                  </button>
-                </div>
-
-                {typingTranslated && (
-                  <div style={{
-                    background: 'rgba(16, 185, 129, 0.05)',
-                    border: '1px solid rgba(16, 185, 129, 0.2)',
-                    borderRadius: '4px',
-                    padding: '10px',
-                    fontSize: '12px',
-                    color: 'var(--text-primary)',
-                    marginTop: '6px'
-                  }}>
-                    <strong>Output:</strong> {typingTranslated}
-                    <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                      ⚡ Click quickly inside another application text input now! Injected in 1.5 seconds.
-                    </div>
+              {/* Status Toggle Card */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '12px 14px',
+                background: 'var(--bg-tertiary)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '6px',
+                marginTop: '6px'
+              }}>
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: 600 }}>Enable Real-Time Typing Translation</div>
+                  <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                    Globally translates text as you type. Toggle with <code style={{ color: 'var(--accent-hover)' }}>Ctrl+Shift+I</code>.
                   </div>
-                )}
-              </form>
+                </div>
+                <label className="switch" style={{ position: 'relative', display: 'inline-block', width: '40px', height: '22px' }}>
+                  <input
+                    type="checkbox"
+                    checked={config.inline_typing_enabled}
+                    onChange={handleToggleIme}
+                    style={{ opacity: 0, width: 0, height: 0 }}
+                  />
+                  <span className={`slider ${config.inline_typing_enabled ? 'active' : ''}`} style={{
+                    position: 'absolute',
+                    cursor: 'pointer',
+                    top: 0, left: 0, right: 0, bottom: 0,
+                    backgroundColor: config.inline_typing_enabled ? 'var(--success-color)' : '#4b5563',
+                    transition: '0.3s',
+                    borderRadius: '34px'
+                  }}>
+                    <span style={{
+                      position: 'absolute',
+                      content: '""',
+                      height: '16px',
+                      width: '16px',
+                      left: config.inline_typing_enabled ? '20px' : '3px',
+                      bottom: '3px',
+                      backgroundColor: 'white',
+                      transition: '0.3s',
+                      borderRadius: '50%'
+                    }} />
+                  </span>
+                </label>
+              </div>
+
+              {/* Test Sandbox */}
+              <div style={{ marginTop: '8px' }}>
+                <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                  ✍️ Test Sandbox (Type here to test real-time translation):
+                </label>
+                <input
+                  type="text"
+                  placeholder={config.inline_typing_enabled 
+                    ? "Type normally, e.g. 'hello world.' and see it translate on Space or Period..." 
+                    : "Enable the toggle above to start testing..."
+                  }
+                  disabled={!config.inline_typing_enabled}
+                  style={{
+                    width: '100%',
+                    background: 'var(--bg-tertiary)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '4px',
+                    padding: '8px 10px',
+                    color: 'var(--text-primary)',
+                    outline: 'none',
+                    fontSize: '13px',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+
+              {/* How it works card */}
+              <div style={{
+                background: 'rgba(255, 255, 255, 0.02)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '6px',
+                padding: '12px',
+                fontSize: '11px',
+                lineHeight: '1.5',
+                color: 'var(--text-secondary)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px'
+              }}>
+                <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '12px' }}>How does it work?</div>
+                <div>
+                  <strong>1. Word Translation (on Space):</strong> As you type a word and press <kbd style={{ background: '#374151', padding: '2px 4px', borderRadius: '3px' }}>Space</kbd>, LangFlow immediately translates that word and types the translation.
+                </div>
+                <div>
+                  <strong>2. Full Sentence Context (on Punctuation/Enter):</strong> When you finish your sentence by pressing <kbd style={{ background: '#374151', padding: '2px 4px', borderRadius: '3px' }}>.</kbd> <kbd style={{ background: '#374151', padding: '2px 4px', borderRadius: '3px' }}>?</kbd> <kbd style={{ background: '#374151', padding: '2px 4px', borderRadius: '3px' }}>!</kbd> or <kbd style={{ background: '#374151', padding: '2px 4px', borderRadius: '3px' }}>Enter</kbd>, LangFlow automatically takes the entire sentence, re-translates it to ensure proper context-aware grammar, erases the draft, and types the final result!
+                </div>
+              </div>
             </div>
           )}
 
