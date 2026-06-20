@@ -208,3 +208,12 @@ select:hover {
 .tooltip:hover::after {
   opacity: 1;
 }
+
+/* Translucent / transparent window root override */
+[data-window-label="screenshot_overlay"],
+[data-window-label="screenshot_overlay"] body,
+[data-window-label="floating_popup"],
+[data-window-label="floating_popup"] body {
+  background-color: transparent !important;
+  background: transparent !important;
+}

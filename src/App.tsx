@@ -13,9 +13,11 @@ export default function App() {
     try {
       const windowLabel = getCurrentWindow().label;
       setLabel(windowLabel);
+      document.documentElement.setAttribute('data-window-label', windowLabel);
     } catch (e) {
       console.error("Failed to get Tauri window label:", e);
       setLabel('main'); // Fallback for standard browser preview
+      document.documentElement.setAttribute('data-window-label', 'main');
     }
   }, []);
 
