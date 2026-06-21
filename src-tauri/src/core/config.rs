@@ -2,6 +2,10 @@ use serde::{Serialize, Deserialize};
 use std::fs;
 use std::path::PathBuf;
 
+fn default_replace_selection_directly() -> bool {
+    true
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AppConfig {
     pub source_lang: String,
@@ -13,6 +17,8 @@ pub struct AppConfig {
     pub hotkey_ocr: String,
     pub hotkey_typing: String,
     pub inline_typing_enabled: bool,
+    #[serde(default = "default_replace_selection_directly")]
+    pub replace_selection_directly: bool,
     pub run_on_startup: bool,
     pub idle_unload_timeout_secs: u64,
 }
@@ -29,6 +35,7 @@ impl Default for AppConfig {
             hotkey_ocr: "Ctrl+Shift+S".to_string(),
             hotkey_typing: "Ctrl+Shift+I".to_string(),
             inline_typing_enabled: false,
+            replace_selection_directly: true,
             run_on_startup: false,
             idle_unload_timeout_secs: 180,
         }

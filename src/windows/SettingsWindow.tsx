@@ -13,6 +13,7 @@ interface AppConfig {
   hotkey_ocr: string;
   hotkey_typing: string;
   inline_typing_enabled: boolean;
+  replace_selection_directly: boolean;
   run_on_startup: boolean;
   idle_unload_timeout_secs: number;
 }
@@ -335,11 +336,62 @@ export const SettingsWindow: React.FC = () => {
                 LangFlow runs a native Win32 keyboard monitor that operates in the background, working while you browse or play fullscreen games.
               </p>
 
+              {/* Direct Selection Replacement Toggle Card */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '12px 14px',
+                background: 'var(--bg-tertiary)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '6px',
+                marginTop: '6px'
+              }}>
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: 600 }}>Direct Selection Replacement</div>
+                  <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                    Directly type/replace the translation over the selected text instead of showing the floating popup.
+                  </div>
+                </div>
+                <label className="switch" style={{ position: 'relative', display: 'inline-block', width: '40px', height: '22px' }}>
+                  <input
+                    type="checkbox"
+                    checked={config.replace_selection_directly}
+                    onChange={() => handleSaveConfig({ ...config, replace_selection_directly: !config.replace_selection_directly })}
+                    style={{ opacity: 0, width: 0, height: 0 }}
+                  />
+                  <span className={`slider ${config.replace_selection_directly ? 'active' : ''}`} style={{
+                    position: 'absolute',
+                    cursor: 'pointer',
+                    top: 0, left: 0, right: 0, bottom: 0,
+                    backgroundColor: config.replace_selection_directly ? 'var(--success-color)' : '#4b5563',
+                    transition: '0.3s',
+                    borderRadius: '34px'
+                  }}>
+                    <span style={{
+                      position: 'absolute',
+                      content: '""',
+                      height: '16px',
+                      width: '16px',
+                      left: config.replace_selection_directly ? '20px' : '3px',
+                      bottom: '3px',
+                      backgroundColor: 'white',
+                      transition: '0.3s',
+                      borderRadius: '50%'
+                    }} />
+                  </span>
+                </label>
+              </div>
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '4px' }}>
                   <div>
                     <div style={{ fontSize: '13px', fontWeight: 500 }}>Translate Highlighted Text</div>
-                    <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Copies highlighted text, pops up quick translation tooltip.</div>
+                    <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                      {config.replace_selection_directly 
+                        ? 'Copies highlighted text, translates it, and replaces the selection in-place.' 
+                        : 'Copies highlighted text, pops up quick translation tooltip.'}
+                    </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center' }}>
                     <code style={{ background: 'black', color: 'var(--accent-hover)', padding: '4px 8px', borderRadius: '4px', fontSize: '12px' }}>

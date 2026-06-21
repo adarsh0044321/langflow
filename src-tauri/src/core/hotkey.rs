@@ -1,11 +1,13 @@
 use std::sync::Arc;
 use std::thread;
+use crate::translation::perform_translation;
+use crate::core::database::Database;
 use std::time::Duration;
 use std::mem;
 use arboard::Clipboard;
-use tauri::{AppHandle, Manager, WebviewWindow, Emitter};
+use tauri::{AppHandle, Manager, Emitter};
 use windows::Win32::UI::Input::KeyboardAndMouse::{
-    RegisterHotKey, SendInput, INPUT, INPUT_0, KEYBDINPUT, KEYEVENTF_KEYUP, MOD_CONTROL, MOD_SHIFT, VIRTUAL_KEY, VK_C, VK_I, VK_S, VK_T
+    RegisterHotKey, SendInput, INPUT, KEYBDINPUT, KEYEVENTF_KEYUP, MOD_CONTROL, MOD_SHIFT, VIRTUAL_KEY, VK_I, VK_S, VK_T
 };
 use windows::Win32::UI::WindowsAndMessaging::{GetCursorPos, GetMessageW, MSG, WM_HOTKEY};
 use windows::Win32::Foundation::{HWND, POINT};
@@ -61,7 +63,7 @@ pub fn start_hotkey_listener(app_handle: AppHandle) {
                     match hotkey_id {
                         HOTKEY_TRANSLATE_ID => {
                             // Run clipboard translation
-                            tokio::spawn(async move {
+                            tauri::async_runtime::spawn(async move {
                                 let _ = process_highlight_translation(handle).await;
                             });
                         }
@@ -118,26 +120,43 @@ async fn process_highlight_translation(app: AppHandle) -> Result<(), Box<dyn std
         _ => return Ok(()), // No text selected
     };
 
-    // 4. Query mouse cursor position
-    let mut point = POINT::default();
-    unsafe {
-        let _ = GetCursorPos(&mut point);
-    }
+    let config = crate::core::config::load_config();
 
-    // 5. Setup popup window coordinates and invoke translate event
-    let app_clone = app.clone();
-    let _ = app.run_on_main_thread(move || {
-        if let Some(popup) = app_clone.get_webview_window("floating_popup") {
-            // Position popup slightly offset from cursor
-            let _ = popup.set_position(tauri::Position::Physical(tauri::PhysicalPosition {
-                x: point.x + 10,
-                y: point.y + 10,
-            }));
-            let _ = popup.show();
-            let _ = popup.set_focus();
-            let _ = popup.emit("translate-highlight", selected_text);
+    if config.replace_selection_directly {
+        let db = app.state::<Arc<Database>>();
+        if let Ok(translated) = perform_translation(
+            db.inner().clone(),
+            &selected_text,
+            &config.source_lang,
+            &config.target_lang,
+        ).await {
+            // Sleep briefly to ensure the system is ready to receive input
+            tokio::time::sleep(Duration::from_millis(50)).await;
+            // Inject the translated text, replacing the selected text
+            crate::core::inline_type::inject_text_as_keystrokes(&translated);
         }
-    });
+    } else {
+        // 4. Query mouse cursor position
+        let mut point = POINT::default();
+        unsafe {
+            let _ = GetCursorPos(&mut point);
+        }
+
+        // 5. Setup popup window coordinates and invoke translate event
+        let app_clone = app.clone();
+        let _ = app.run_on_main_thread(move || {
+            if let Some(popup) = app_clone.get_webview_window("floating_popup") {
+                // Position popup slightly offset from cursor
+                let _ = popup.set_position(tauri::Position::Physical(tauri::PhysicalPosition {
+                    x: point.x + 10,
+                    y: point.y + 10,
+                }));
+                let _ = popup.show();
+                let _ = popup.set_focus();
+                let _ = popup.emit("translate-highlight", selected_text);
+            }
+        });
+    }
 
     Ok(())
 }

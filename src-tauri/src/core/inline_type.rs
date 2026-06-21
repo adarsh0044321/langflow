@@ -1,5 +1,5 @@
 use std::mem;
-use windows::Win32::UI::Input::KeyboardAndMouse::{SendInput, INPUT, INPUT_0, KEYBDINPUT, KEYEVENTF_UNICODE, KEYEVENTF_KEYUP};
+use windows::Win32::UI::Input::KeyboardAndMouse::{SendInput, INPUT, KEYBDINPUT, KEYEVENTF_UNICODE, KEYEVENTF_KEYUP};
 
 /// Safely injects text into the active focused window using Win32 SendInput Unicode events.
 /// This bypasses copy-paste restrictions and works directly in chat inputs (Discord, games, forms).

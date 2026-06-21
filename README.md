@@ -7,7 +7,7 @@ LangFlow is a lightweight, high-performance, native Windows translation utility 
 ## Key Features
 
 *   🚀 **Fast & Responsive:** A frameless utility-first interface built for immediate accessibility and keyboard-driven workflows.
-*   ⌨️ **Global Highlight Translation (`Ctrl+Shift+T`):** Instantly translate highlighted text in Chrome, Discord, WhatsApp Desktop, documents, and game launchers with a floating popup near your cursor.
+*   ⌨️ **Global Highlight Translation (`Ctrl+Shift+T`):** Instantly translate highlighted text in Chrome, Discord, WhatsApp Desktop, documents, and game launchers. Supports displaying a quick floating translation popup or directly replacing the selection in-place with the translated text.
 *   📸 **Screenshot Area OCR (`Ctrl+Shift+S`):** Darken the screen, crop a custom bounding box, and automatically run native Windows OCR to translate text on top of game panels, quest descriptions, manga, or video streams.
 *   ✍️ **Inline Typing Assistant (`Ctrl+Shift+I`):** Write in your native language inside a game-safe overlay. LangFlow translates and injects the output character-by-character into target window text fields using Win32 unicode input events (safe from anti-cheat bans).
 *   📦 **Modular Language Packs:** Keeps initial download sizes tiny (< 10MB) by loading lightweight translation models on-demand. Install/uninstall packs through the Settings panel.

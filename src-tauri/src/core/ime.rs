@@ -3,8 +3,7 @@ use std::thread;
 use std::time::Duration;
 use std::mem;
 use once_cell::sync::{Lazy, OnceCell};
-use tauri::{AppHandle, Manager, Emitter};
-use arboard::Clipboard;
+use tauri::{AppHandle, Manager};
 
 use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
 use windows::Win32::UI::WindowsAndMessaging::{
@@ -69,7 +68,7 @@ pub fn init_ime_hook(app: AppHandle) {
                     // process messages
                 }
 
-                UnhookWindowsHookEx(h);
+                let _ = UnhookWindowsHookEx(h);
             }
         }
     });
@@ -184,7 +183,7 @@ fn process_key_event(vk_code: u32, scan_code: u32) -> bool {
 
 fn trigger_word_translation(word: String) {
     let app = get_app_handle();
-    tokio::spawn(async move {
+    tauri::async_runtime::spawn(async move {
         let db = app.state::<Arc<Database>>();
         let config = load_config();
         
@@ -223,7 +222,7 @@ fn trigger_sentence_translation(
     send_enter_after: bool,
 ) {
     let app = get_app_handle();
-    tokio::spawn(async move {
+    tauri::async_runtime::spawn(async move {
         let db = app.state::<Arc<Database>>();
         let config = load_config();
 
