@@ -23,6 +23,27 @@ const LANGUAGES = [
   { code: 'ru', name: 'Russian' }
 ];
 
+const detectLanguage = (text: string): string => {
+  if (!text) return 'en';
+  // Check for Japanese characters (Hiragana, Katakana, Kanji)
+  if (/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FBF]/.test(text)) {
+    return 'ja';
+  }
+  // Check for Korean characters (Hangul)
+  if (/[\uAC00-\uD7A3]/.test(text)) {
+    return 'ko';
+  }
+  // Check for Cyrillic characters (Russian)
+  if (/[\u0400-\u04FF]/.test(text)) {
+    return 'ru';
+  }
+  // Check for Chinese characters (Hanzi)
+  if (/[\u4E00-\u9FFF]/.test(text)) {
+    return 'zh';
+  }
+  return 'en'; // Default fallback
+};
+
 export const MainWindow: React.FC = () => {
   const [sourceText, setSourceText] = useState('');
   const [translatedText, setTranslatedText] = useState('');
@@ -75,11 +96,26 @@ export const MainWindow: React.FC = () => {
   };
 
   const handleSwap = () => {
-    if (sourceLang === 'Auto') return; // Cannot swap Auto to target
-    const temp = sourceLang;
-    setSourceLang(targetLang);
-    setTargetLang(temp);
+    let currentSource = sourceLang;
+    if (currentSource === 'Auto') {
+      currentSource = detectLanguage(sourceText);
+    }
+
+    const newSource = targetLang;
+    let newTarget = currentSource;
+    
+    // Ensure source and target are not identical
+    if (newSource === newTarget) {
+      newTarget = newSource === 'en' ? 'ja' : 'en';
+    }
+
+    setSourceLang(newSource);
+    setTargetLang(newTarget);
+    
+    // Swap texts instantly for a snappy UI experience
+    const oldSourceText = sourceText;
     setSourceText(translatedText);
+    setTranslatedText(oldSourceText);
   };
 
   const handleClear = () => {
@@ -200,7 +236,6 @@ export const MainWindow: React.FC = () => {
             className="btn-secondary"
             style={{ width: '28px', height: '28px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', border: '1px solid var(--border-color)' }}
             onClick={handleSwap}
-            disabled={sourceLang === 'Auto'}
             title="Swap Languages"
           >
             ⇄
