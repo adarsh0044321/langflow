@@ -93,11 +93,15 @@ unsafe extern "system" fn keyboard_hook_proc(code: i32, wparam: WPARAM, lparam: 
         let is_keydown = wparam.0 == WM_KEYDOWN as usize || wparam.0 == WM_SYSKEYDOWN as usize;
         if is_keydown {
             let kbd_struct = *(lparam.0 as *const KBDLLHOOKSTRUCT);
-            let vk_code = kbd_struct.vkCode;
             
-            if process_key_event(vk_code, kbd_struct.scanCode) {
-                // If process_key_event returns true, it means we swallow this key event
-                return LRESULT(1);
+            // Ignore injected inputs (flags.0 bit 4 is LLKHF_INJECTED) to avoid loops and self-triggering
+            let is_injected = (kbd_struct.flags.0 & 0x10) != 0;
+            if !is_injected {
+                let vk_code = kbd_struct.vkCode;
+                if process_key_event(vk_code, kbd_struct.scanCode) {
+                    // Swallow the key event
+                    return LRESULT(1);
+                }
             }
         }
     }
@@ -269,6 +273,17 @@ unsafe fn vk_to_char(vk: u32, scan_code: u32) -> Option<char> {
     let mut keyboard_state = [0u8; 256];
     let _ = GetKeyboardState(&mut keyboard_state);
 
+    // Manually read keyboard modifier states (Shift, Caps Lock) for accurate translation
+    let is_shift = (windows::Win32::UI::Input::KeyboardAndMouse::GetKeyState(0x10) as u16 & 0x8000) != 0; // VK_SHIFT
+    let is_caps = (windows::Win32::UI::Input::KeyboardAndMouse::GetKeyState(0x14) as u16 & 0x0001) != 0; // VK_CAPITAL (Caps Lock)
+    
+    if is_shift {
+        keyboard_state[0x10] = 0x80;
+    }
+    if is_caps {
+        keyboard_state[0x14] = 0x01;
+    }
+
     let mut buf = [0u16; 8];
     let len = ToUnicode(
         vk,
@@ -281,7 +296,52 @@ unsafe fn vk_to_char(vk: u32, scan_code: u32) -> Option<char> {
     if len > 0 {
         char::from_u32(buf[0] as u32)
     } else {
-        None
+        // Fallback translation mapping for standard virtual keys when running on non-GUI background threads
+        match vk {
+            // A-Z
+            0x41..=0x5A => {
+                let base = (vk - 0x41) as u8;
+                let uppercase = is_shift ^ is_caps;
+                if uppercase {
+                    Some((b'A' + base) as char)
+                } else {
+                    Some((b'a' + base) as char)
+                }
+            }
+            // Numeric Row
+            0x30..=0x39 => {
+                let base = (vk - 0x30) as u8;
+                if is_shift {
+                    match base {
+                        1 => Some('!'),
+                        2 => Some('@'),
+                        3 => Some('#'),
+                        4 => Some('$'),
+                        5 => Some('%'),
+                        6 => Some('^'),
+                        7 => Some('&'),
+                        8 => Some('*'),
+                        9 => Some('('),
+                        0 => Some(')'),
+                        _ => None,
+                    }
+                } else {
+                    Some((b'0' + base) as char)
+                }
+            }
+            // Numpad Numbers
+            0x60..=0x69 => {
+                let base = (vk - 0x60) as u8;
+                Some((b'0' + base) as char)
+            }
+            // Punctuation
+            0xBC => Some(if is_shift { '<' } else { ',' }), // OEM_COMMA
+            0xBD => Some(if is_shift { '_' } else { '-' }), // OEM_MINUS
+            0xBE => Some(if is_shift { '>' } else { '.' }), // OEM_PERIOD
+            0xBF => Some(if is_shift { '?' } else { '/' }), // OEM_2
+            0xDE => Some(if is_shift { '"' } else { '\'' }), // OEM_7
+            _ => None,
+        }
     }
 }
 

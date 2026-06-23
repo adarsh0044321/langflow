@@ -62,9 +62,52 @@ pub fn is_model_installed(source: &str, target: &str) -> bool {
     path.join(format!("{}-{}", t_low, s_low)).join("model.onnx").exists()
 }
 
+fn detect_lang_backend(text: &str) -> &'static str {
+    if text.is_empty() {
+        return "en";
+    }
+    // Check for Japanese characters (Hiragana, Katakana, CJK Kanji)
+    let has_ja = text.chars().any(|c| match c as u32 {
+        0x3040..=0x309F | 0x30A0..=0x30FF | 0x4E00..=0x9FBF => true,
+        _ => false,
+    });
+    if has_ja {
+        return "ja";
+    }
+    // Check for Korean Hangul
+    let has_ko = text.chars().any(|c| match c as u32 {
+        0xAC00..=0xD7A3 => true,
+        _ => false,
+    });
+    if has_ko {
+        return "ko";
+    }
+    // Check for Cyrillic (Russian)
+    let has_ru = text.chars().any(|c| match c as u32 {
+        0x0400..=0x04FF => true,
+        _ => false,
+    });
+    if has_ru {
+        return "ru";
+    }
+    // Check for Chinese Hanzi
+    let has_zh = text.chars().any(|c| match c as u32 {
+        0x4E00..=0x9FFF => true,
+        _ => false,
+    });
+    if has_zh {
+        return "zh";
+    }
+    "en"
+}
+
 fn translate_offline_fallback(text: &str, source: &str, target: &str) -> String {
-    let s_low = source.to_lowercase();
+    let mut s_low = source.to_lowercase();
     let t_low = target.to_lowercase();
+    
+    if s_low == "auto" {
+        s_low = detect_lang_backend(text).to_string();
+    }
     
     let trimmed = text.trim();
 
