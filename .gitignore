@@ -22,3 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# AI Memory Files (Local only)
+BRAIN.md
+ROADMAP.md
+DECISIONS.md
+HANDOVER.md
+SESSION.md
